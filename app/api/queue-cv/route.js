@@ -15,12 +15,13 @@ export async function POST(request) {
     const buffer = Buffer.from(await cvFile.arrayBuffer());
     const cvText = await extractTextFromPdf(buffer);
 
-    if (!cvText || cvText.length === 0) {
-      return Response.json(
-        { error: 'CV tidak bisa dibaca. Pastikan PDF bukan hasil scan gambar.' },
-        { status: 400 }
-      );
-    }
+    // Batasi teks ke 8000 karakter untuk hemat token & storage
+    const truncatedText = cvText ? cvText.slice(0, 8000) : '';
+
+    // Jika text extraction gagal (PDF scan/gambar), simpan base64 untuk Gemini multimodal
+    const pdfBase64 = (!truncatedText || truncatedText.length === 0)
+      ? buffer.toString('base64')
+      : null;
 
     // Pastikan session ada di tabel sessions sebelum insert candidate
     // (karena ada foreign key constraint)
@@ -43,8 +44,9 @@ export async function POST(request) {
       .insert({
         file_name: cvFile.name,
         position_name: parameters.positionName,
+        role_name: parameters.roleName || null,
         session_id: sessionId || null,
-        parameters: { ...parameters, cvText },
+        parameters: { ...parameters, cvText: truncatedText, pdfBase64: pdfBase64 || null },
         status: 'pending',
       })
       .select()
