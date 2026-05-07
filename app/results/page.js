@@ -2,41 +2,24 @@
 import { useEffect, useState, Suspense } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
 
-function ScoreRing({ score }) {
-  const r = 28;
-  const circ = 2 * Math.PI * r;
-  const offset = circ - (score / 100) * circ;
-  const color = score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
-
-  return (
-    <svg width="72" height="72" viewBox="0 0 72 72">
-      <circle cx="36" cy="36" r={r} fill="none" stroke="rgba(148,163,184,0.1)" strokeWidth="6" />
-      <circle
-        cx="36" cy="36" r={r}
-        fill="none"
-        stroke={color}
-        strokeWidth="6"
-        strokeLinecap="round"
-        strokeDasharray={circ}
-        strokeDashoffset={offset}
-        transform="rotate(-90 36 36)"
-        style={{ transition: 'stroke-dashoffset 1s ease', filter: `drop-shadow(0 0 6px ${color}80)` }}
-      />
-      <text x="36" y="40" textAnchor="middle" fontSize="14" fontWeight="bold" fill="white">{score}</text>
-    </svg>
-  );
+function getScoreColor(score) {
+  if (score >= 75) return { bg: '#dcfce7', text: '#166534', border: '#86efac' };
+  if (score >= 50) return { bg: '#fef9c3', text: '#854d0e', border: '#fde047' };
+  return { bg: '#ffdad6', text: '#ba1a1a', border: '#fca5a5' };
 }
 
 function MatchBadge({ level }) {
   const styles = {
-    High: { bg: 'rgba(16,185,129,0.15)', border: 'rgba(16,185,129,0.3)', text: '#10b981', label: '● High' },
-    Medium: { bg: 'rgba(245,158,11,0.15)', border: 'rgba(245,158,11,0.3)', text: '#f59e0b', label: '● Medium' },
-    Low: { bg: 'rgba(239,68,68,0.15)', border: 'rgba(239,68,68,0.3)', text: '#ef4444', label: '● Low' },
+    High:   { bg: '#dcfce7', border: '#86efac', text: '#166534', label: 'High' },
+    Medium: { bg: '#fef9c3', border: '#fde047', text: '#854d0e', label: 'Medium' },
+    Low:    { bg: '#ffdad6', border: '#fca5a5', text: '#ba1a1a', label: 'Low' },
   };
   const s = styles[level] || styles.Low;
   return (
-    <span className="text-xs font-semibold px-2.5 py-1 rounded-full"
-      style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.text }}>
+    <span
+      className="text-xs font-semibold px-2.5 py-1 rounded-full"
+      style={{ background: s.bg, border: `1px solid ${s.border}`, color: s.text }}
+    >
       {s.label}
     </span>
   );
@@ -45,55 +28,63 @@ function MatchBadge({ level }) {
 function CandidateModal({ candidate, onClose }) {
   if (!candidate) return null;
   const score = candidate.score ?? 0;
-  const color = score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444';
+  const scoreStyle = getScoreColor(score);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
-      onClick={onClose}>
-      <div className="modal-content w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-2xl"
-        style={{ background: 'rgb(15 23 42)', border: '1px solid rgba(148,163,184,0.15)' }}
-        onClick={e => e.stopPropagation()}>
-
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center p-4 modal-backdrop"
+      style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}
+      onClick={onClose}
+    >
+      <div
+        className="modal-content w-full max-w-lg max-h-[85vh] overflow-y-auto rounded-lg bg-surface-container-lowest border border-outline-variant shadow-lg"
+        onClick={e => e.stopPropagation()}
+      >
         {/* Modal Header */}
-        <div className="p-6 border-b border-slate-800 flex items-start justify-between">
-          <div className="flex items-center gap-4">
-            <ScoreRing score={score} />
+        <div className="p-6 border-b border-outline-variant flex items-start justify-between">
+          <div className="flex items-start gap-4">
+            <div
+              className="shrink-0 w-14 h-14 rounded-full flex items-center justify-center font-bold text-xl border-2"
+              style={{ backgroundColor: scoreStyle.bg, borderColor: scoreStyle.border, color: scoreStyle.text }}
+            >
+              {score}
+            </div>
             <div>
-              <h2 className="text-lg font-bold text-white">{candidate.candidate_name || 'Tidak diketahui'}</h2>
-              <p className="text-sm text-slate-400 mt-0.5">
+              <h2 className="text-lg font-bold text-on-surface">{candidate.candidate_name || 'Tidak diketahui'}</h2>
+              <p className="text-sm text-on-surface-variant mt-0.5">
                 {candidate.email && <span>{candidate.email}</span>}
-                {candidate.email && candidate.phone && <span className="mx-2 text-slate-600">·</span>}
+                {candidate.email && candidate.phone && <span className="mx-2">�</span>}
                 {candidate.phone && <span>{candidate.phone}</span>}
-                {!candidate.email && !candidate.phone && <span className="text-slate-600">Tidak ada kontak</span>}
+                {!candidate.email && !candidate.phone && <span className="text-outline italic">Tidak ada kontak</span>}
               </p>
               <div className="mt-2">
                 <MatchBadge level={candidate.match_level} />
               </div>
             </div>
           </div>
-          <button onClick={onClose}
-            className="text-slate-500 hover:text-white transition-colors text-xl leading-none p-1 -mt-1">×</button>
+          <button onClick={onClose} className="text-on-surface-variant hover:text-on-surface transition-colors text-2xl leading-none p-1 -mt-1">
+            x
+          </button>
         </div>
 
         {/* Modal Body */}
         <div className="p-6 space-y-5">
-          {/* Summary */}
           {candidate.summary && (
             <div>
-              <p className="text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Ringkasan Profil</p>
-              <p className="text-sm text-slate-300 leading-relaxed">{candidate.summary}</p>
+              <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Ringkasan Profil</p>
+              <p className="text-sm text-on-surface leading-relaxed">{candidate.summary}</p>
             </div>
           )}
 
-          {/* Matched */}
           {candidate.matched_requirements?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-emerald-500 uppercase tracking-wider mb-2">✓ Requirements Terpenuhi</p>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#166534' }}>
+                Terpenuhi
+              </p>
               <ul className="space-y-1.5">
                 {candidate.matched_requirements.map((r, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-emerald-400 mt-0.5 flex-shrink-0">✓</span>
+                  <li key={i} className="flex items-start gap-2 text-sm text-on-surface">
+                    <span className="shrink-0 mt-0.5" style={{ color: '#166534' }}>v</span>
                     <span>{r}</span>
                   </li>
                 ))}
@@ -101,14 +92,15 @@ function CandidateModal({ candidate, onClose }) {
             </div>
           )}
 
-          {/* Missing */}
           {candidate.missing_requirements?.length > 0 && (
             <div>
-              <p className="text-xs font-semibold text-red-400 uppercase tracking-wider mb-2">✕ Requirements Tidak Terpenuhi</p>
+              <p className="text-xs font-semibold uppercase tracking-wider mb-2" style={{ color: '#ba1a1a' }}>
+                Tidak Terpenuhi
+              </p>
               <ul className="space-y-1.5">
                 {candidate.missing_requirements.map((r, i) => (
-                  <li key={i} className="flex items-start gap-2 text-sm text-slate-300">
-                    <span className="text-red-400 mt-0.5 flex-shrink-0">✕</span>
+                  <li key={i} className="flex items-start gap-2 text-sm text-on-surface">
+                    <span className="shrink-0 mt-0.5" style={{ color: '#ba1a1a' }}>x</span>
                     <span>{r}</span>
                   </li>
                 ))}
@@ -116,25 +108,23 @@ function CandidateModal({ candidate, onClose }) {
             </div>
           )}
 
-          {/* Reasoning */}
           {candidate.reasoning && (
-            <div className="rounded-xl p-4"
-              style={{ background: 'rgba(99,102,241,0.08)', border: '1px solid rgba(99,102,241,0.2)' }}>
-              <p className="text-xs font-semibold text-violet-400 mb-2">🤖 AI Reasoning</p>
-              <p className="text-sm text-slate-300 italic leading-relaxed">{candidate.reasoning}</p>
+            <div className="rounded-lg p-4 bg-surface-container border border-outline-variant">
+              <p className="text-xs font-semibold mb-2" style={{ color: '#003e6f' }}>AI Reasoning</p>
+              <p className="text-sm text-on-surface italic leading-relaxed">{candidate.reasoning}</p>
             </div>
           )}
 
-          {/* File */}
-          <p className="text-xs text-slate-600 pt-2 border-t border-slate-800">
+          <p className="text-xs text-on-surface-variant pt-2 border-t border-outline-variant">
             File: {candidate.file_name}
           </p>
         </div>
 
-        <div className="p-4 border-t border-slate-800">
-          <button onClick={onClose}
-            className="w-full py-2.5 rounded-xl text-sm font-medium text-slate-300 hover:text-white transition-colors"
-            style={{ background: 'rgba(148,163,184,0.1)', border: '1px solid rgba(148,163,184,0.15)' }}>
+        <div className="p-4 border-t border-outline-variant">
+          <button
+            onClick={onClose}
+            className="w-full py-2.5 rounded text-sm font-semibold text-on-surface-variant hover:text-on-surface border border-outline-variant hover:bg-surface-container transition-colors"
+          >
             Tutup
           </button>
         </div>
@@ -145,13 +135,13 @@ function CandidateModal({ candidate, onClose }) {
 
 function SkeletonRow() {
   return (
-    <div className="flex items-center gap-4 p-4 rounded-xl" style={{ background: 'rgba(15,23,42,0.4)' }}>
-      <div className="w-8 h-4 rounded shimmer" />
-      <div className="flex-1 h-4 rounded shimmer" />
-      <div className="w-20 h-4 rounded shimmer" />
-      <div className="w-16 h-6 rounded-full shimmer" />
-      <div className="w-16 h-4 rounded shimmer" />
-    </div>
+    <tr>
+      {[40, 160, 120, 80, 80].map((w, i) => (
+        <td key={i} className="px-4 py-4">
+          <div className="h-4 rounded shimmer" style={{ width: w }} />
+        </td>
+      ))}
+    </tr>
   );
 }
 
@@ -165,7 +155,16 @@ function ResultsContent() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('acc_career_auth');
+    router.push('/login');
+  };
+
   useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('acc_career_auth') !== 'true') {
+      router.replace('/login');
+      return;
+    }
     const params = new URLSearchParams();
     if (sessionId) params.set('session_id', sessionId);
     if (position) params.set('position', position);
@@ -184,7 +183,7 @@ function ResultsContent() {
         setError(err.message);
         setLoading(false);
       });
-  }, [position, sessionId]);
+  }, [position, sessionId, router]);
 
   const highCount = candidates.filter(c => c.match_level === 'High').length;
   const mediumCount = candidates.filter(c => c.match_level === 'Medium').length;
@@ -194,157 +193,196 @@ function ResultsContent() {
     : 0;
 
   return (
-    <div className="animated-gradient min-h-screen">
-      {/* Orbs */}
-      <div className="fixed top-[-20%] right-[-10%] w-[500px] h-[500px] rounded-full opacity-15 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #8b5cf6 0%, transparent 70%)' }} />
-      <div className="fixed bottom-[-20%] left-[-10%] w-[400px] h-[400px] rounded-full opacity-10 pointer-events-none"
-        style={{ background: 'radial-gradient(circle, #6366f1 0%, transparent 70%)' }} />
+    <div className="min-h-screen bg-background flex flex-col">
 
-      <div className="relative z-10 max-w-5xl mx-auto px-4 py-10">
-
-        {/* Header */}
-        <div className="flex items-start justify-between mb-8">
-          <div>
-            <button
-              onClick={() => router.push('/')}
-              className="flex items-center gap-2 text-sm text-slate-400 hover:text-white transition-colors mb-4"
-            >
-              <span>←</span> Analisis Baru
-            </button>
-            <h1 className="text-3xl font-bold text-white" style={{ letterSpacing: '-0.02em' }}>
-              Hasil Ranking
-            </h1>
-            <p className="text-slate-400 mt-1 text-sm">
-              Posisi: <span className="text-violet-400 font-medium">{position}</span>
-              {candidates.length > 0 && <span className="ml-2 text-slate-500">— {candidates.length} kandidat dianalisis</span>}
-            </p>
-          </div>
+      {/* TopNavBar */}
+      <header className="flex justify-between items-center w-full px-6 py-4" style={{ backgroundColor: '#003e6f' }}>
+        <div className="flex items-center gap-10">
+          <span className="text-white font-bold text-2xl">ACC Career</span>
+          <nav className="hidden md:flex gap-8 items-center">
+            <a href="/" className="text-white/80 hover:text-white transition-colors text-sm">Job Posting</a>
+            <a href="/results" className="text-white border-b-2 pb-1 font-bold text-sm" style={{ borderColor: '#fe9835' }}>
+              Job Listing
+            </a>
+          </nav>
         </div>
+        <div className="flex items-center gap-3">
+          <button onClick={handleLogout} className="text-white/70 hover:text-white text-sm transition-colors">Logout</button>
+          <button
+            onClick={() => router.push('/')}
+            className="font-semibold text-sm px-6 py-2 rounded transition-all hover:opacity-90"
+            style={{ backgroundColor: '#fe9835', color: '#693600' }}
+          >
+            Post a Job
+          </button>
+        </div>
+      </header>
+
+      {/* Hero Section */}
+      <section className="px-6 py-12" style={{ backgroundColor: '#005696' }}>
+        <div className="max-w-5xl mx-auto">
+          <button
+            onClick={() => router.push('/')}
+            className="flex items-center gap-1 text-sm mb-4 hover:opacity-80 transition-opacity"
+            style={{ color: 'rgba(255,255,255,0.7)' }}
+          >
+            <span className="material-symbols-outlined text-base">arrow_back</span>
+            Analisis Baru
+          </button>
+          <h1 className="text-white font-bold text-4xl mb-2">Hasil Ranking CV</h1>
+          <p className="text-base" style={{ color: 'rgba(255,255,255,0.7)' }}>
+            Posisi: <span className="text-white font-semibold">{position || '�'}</span>
+            {!loading && candidates.length > 0 && (
+              <span className="ml-2">� {candidates.length} kandidat dianalisis</span>
+            )}
+          </p>
+        </div>
+      </section>
+
+      {/* Main Content */}
+      <main className="grow px-6 py-8 max-w-5xl mx-auto w-full">
 
         {/* Stats Cards */}
         {!loading && candidates.length > 0 && (
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-8">
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-6">
             {[
-              { label: 'Total Kandidat', value: candidates.length, color: '#818cf8' },
-              { label: 'High Match', value: highCount, color: '#10b981' },
-              { label: 'Medium Match', value: mediumCount, color: '#f59e0b' },
-              { label: 'Rata-rata Skor', value: avgScore, color: '#c084fc' },
+              { label: 'Total Kandidat', value: candidates.length, color: '#003e6f', bg: '#d2e4ff' },
+              { label: 'High Match',     value: highCount,          color: '#166534', bg: '#dcfce7' },
+              { label: 'Medium Match',   value: mediumCount,        color: '#854d0e', bg: '#fef9c3' },
+              { label: 'Rata-rata Skor', value: avgScore,           color: '#693600', bg: '#ffdcc2' },
             ].map(stat => (
-              <div key={stat.label} className="glass-card rounded-xl p-4 text-center">
+              <div key={stat.label} className="bg-surface-container-lowest rounded-lg border border-outline-variant p-4 text-center">
                 <p className="text-2xl font-bold" style={{ color: stat.color }}>{stat.value}</p>
-                <p className="text-xs text-slate-500 mt-1">{stat.label}</p>
+                <p className="text-xs text-on-surface-variant mt-1">{stat.label}</p>
               </div>
             ))}
           </div>
         )}
 
-        {/* Table Card */}
-        <div className="glass-card rounded-2xl overflow-hidden">
-          {/* Table Header */}
-          <div className="px-6 py-4 border-b border-slate-800 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-300">Kandidat</h2>
-            {!loading && candidates.length > 0 && (
-              <span className="text-xs text-slate-500">Diurutkan berdasarkan skor tertinggi</span>
-            )}
-          </div>
+        {/* Candidates Table */}
+        <div className="bg-surface-container-lowest rounded-lg border border-outline-variant overflow-hidden">
+          <table className="w-full border-collapse">
+            <thead>
+              <tr style={{ backgroundColor: '#fe9835', color: '#693600' }}>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase tracking-wider">Rank</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase tracking-wider">Nama Kandidat</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase tracking-wider">Kontak</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase tracking-wider">Skor</th>
+                <th className="px-4 py-4 text-left text-sm font-bold uppercase tracking-wider">Match Level</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-outline-variant">
+              {loading && [1, 2, 3, 4].map(i => <SkeletonRow key={i} />)}
 
-          {/* Content */}
-          <div className="p-4">
-            {loading && (
-              <div className="space-y-2">
-                {[1, 2, 3, 4].map(i => <SkeletonRow key={i} />)}
-              </div>
-            )}
+              {error && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center">
+                    <p className="text-4xl mb-3">x</p>
+                    <p className="text-sm font-medium" style={{ color: '#ba1a1a' }}>Gagal memuat hasil</p>
+                    <p className="text-xs text-on-surface-variant mt-1">{error}</p>
+                  </td>
+                </tr>
+              )}
 
-            {error && (
-              <div className="text-center py-12">
-                <div className="text-4xl mb-3">⚠️</div>
-                <p className="text-red-400 text-sm font-medium">Gagal memuat hasil</p>
-                <p className="text-slate-500 text-xs mt-1">{error}</p>
-              </div>
-            )}
-
-            {!loading && !error && candidates.length === 0 && (
-              <div className="text-center py-12">
-                <div className="text-4xl mb-3">📭</div>
-                <p className="text-slate-400 text-sm">Belum ada hasil untuk posisi ini</p>
-                <button onClick={() => router.push('/')}
-                  className="mt-4 text-sm text-violet-400 hover:text-violet-300 transition-colors">
-                  Mulai analisis →
-                </button>
-              </div>
-            )}
-
-            {!loading && !error && candidates.length > 0 && (
-              <div className="space-y-2">
-                {candidates.map((c, i) => {
-                  const score = c.score ?? 0;
-                  const isTop = i < 3;
-                  return (
-                    <div
-                      key={c.id}
-                      className="candidate-row flex items-center gap-4 px-4 py-3 rounded-xl cursor-pointer"
-                      style={{ border: '1px solid rgba(148,163,184,0.06)' }}
-                      onClick={() => setSelected(c)}
+              {!loading && !error && candidates.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-12 text-center">
+                    <p className="text-4xl mb-3">-</p>
+                    <p className="text-sm text-on-surface-variant">Belum ada hasil untuk posisi ini</p>
+                    <button
+                      onClick={() => router.push('/')}
+                      className="mt-4 text-sm font-semibold hover:opacity-80 transition-opacity"
+                      style={{ color: '#003e6f' }}
                     >
-                      {/* Rank */}
-                      <div className="w-8 text-center flex-shrink-0">
-                        {isTop ? (
-                          <span className="text-lg">{['🥇','🥈','🥉'][i]}</span>
-                        ) : (
-                          <span className="text-sm font-bold text-slate-600">#{i + 1}</span>
-                        )}
-                      </div>
+                      Mulai analisis
+                    </button>
+                  </td>
+                </tr>
+              )}
 
-                      {/* Name & file */}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">
-                          {c.candidate_name || 'Nama tidak terdeteksi'}
-                        </p>
-                        <p className="text-xs text-slate-500 truncate">{c.file_name}</p>
-                      </div>
-
-                      {/* Score bar */}
-                      <div className="hidden sm:flex items-center gap-2 w-32">
-                        <div className="flex-1 h-1.5 rounded-full overflow-hidden" style={{ background: 'rgba(15,23,42,0.8)' }}>
-                          <div
-                            className="h-full rounded-full transition-all duration-700"
-                            style={{
-                              width: `${score}%`,
-                              background: score >= 75 ? '#10b981' : score >= 50 ? '#f59e0b' : '#ef4444',
-                            }}
-                          />
+              {!loading && !error && candidates.map((c, i) => {
+                const score = c.score ?? 0;
+                const scoreStyle = getScoreColor(score);
+                const isEven = i % 2 === 0;
+                const medals = ['1st', '2nd', '3rd'];
+                return (
+                  <tr
+                    key={c.id}
+                    className="cursor-pointer transition-colors hover:bg-surface-container-low"
+                    style={{ backgroundColor: isEven ? '#ffffff' : '#f3f4f5' }}
+                    onClick={() => setSelected(c)}
+                  >
+                    <td className="px-4 py-4 text-sm font-semibold text-on-surface">
+                      {i < 3 ? medals[i] : `#${i + 1}`}
+                    </td>
+                    <td className="px-4 py-4">
+                      <p className="text-sm font-semibold" style={{ color: '#003e6f' }}>
+                        {c.candidate_name || 'Nama tidak terdeteksi'}
+                      </p>
+                      <p className="text-xs text-on-surface-variant mt-0.5">{c.file_name}</p>
+                    </td>
+                    <td className="px-4 py-4 text-sm text-on-surface-variant">
+                      {c.email || c.phone || <span className="italic text-outline">�</span>}
+                    </td>
+                    <td className="px-4 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 rounded-full bg-surface-container-high overflow-hidden">
+                          <div className="h-full rounded-full" style={{ width: `${score}%`, backgroundColor: scoreStyle.text }} />
                         </div>
-                        <span className="text-sm font-bold text-white w-8 text-right">{score}</span>
+                        <span
+                          className="text-sm font-bold px-2 py-0.5 rounded"
+                          style={{ backgroundColor: scoreStyle.bg, color: scoreStyle.text }}
+                        >
+                          {score}
+                        </span>
                       </div>
-
-                      {/* Badge */}
-                      <div className="flex-shrink-0">
-                        <MatchBadge level={c.match_level} />
-                      </div>
-
-                      {/* Arrow */}
-                      <span className="text-slate-600 text-sm flex-shrink-0">›</span>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
+                    </td>
+                    <td className="px-4 py-4">
+                      <MatchBadge level={c.match_level} />
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
         </div>
 
-        {/* Legend */}
         {!loading && candidates.length > 0 && (
-          <div className="flex items-center justify-center gap-6 mt-6 text-xs text-slate-600">
-            <span>🟢 High: 75–100</span>
-            <span>🟡 Medium: 50–74</span>
-            <span>🔴 Low: 0–49</span>
+          <div className="flex items-center justify-center gap-6 mt-4 text-xs text-on-surface-variant">
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: '#166534' }}></span>
+              High: 75�100
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: '#854d0e' }}></span>
+              Medium: 50�74
+            </span>
+            <span className="flex items-center gap-1">
+              <span className="w-3 h-3 rounded-full inline-block" style={{ backgroundColor: '#ba1a1a' }}></span>
+              Low: 0�49
+            </span>
           </div>
         )}
-      </div>
+      </main>
 
-      {/* Modal */}
+      {/* Footer */}
+      <footer className="bg-surface-container-lowest border-t border-outline-variant px-6 py-8 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div className="flex flex-col items-center md:items-start gap-1">
+          <div className="flex items-center gap-2 text-sm">
+            <span className="text-on-surface-variant">Powered By :</span>
+            <span className="font-bold" style={{ color: '#003e6f' }}>ACC Red Berries</span>
+          </div>
+          <p className="text-xs text-on-surface-variant">
+            � 2024 Berijalan Recruitment Management System. All rights reserved.
+          </p>
+        </div>
+        <div className="flex gap-6">
+          <a href="#" className="text-xs text-on-surface-variant hover:text-secondary transition-colors">Privacy Policy</a>
+          <a href="#" className="text-xs text-on-surface-variant hover:text-secondary transition-colors">Terms of Service</a>
+          <a href="#" className="text-xs text-on-surface-variant hover:text-secondary transition-colors">Contact Support</a>
+        </div>
+      </footer>
+
       <CandidateModal candidate={selected} onClose={() => setSelected(null)} />
     </div>
   );
@@ -353,10 +391,13 @@ function ResultsContent() {
 export default function Results() {
   return (
     <Suspense fallback={
-      <div className="animated-gradient min-h-screen flex items-center justify-center">
+      <div className="min-h-screen bg-background flex items-center justify-center">
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-violet-500/30 border-t-violet-400 rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-slate-400 text-sm">Memuat hasil...</p>
+          <div
+            className="w-8 h-8 border-2 rounded-full animate-spin mx-auto mb-3"
+            style={{ borderColor: '#c1c7d2', borderTopColor: '#003e6f' }}
+          />
+          <p className="text-on-surface-variant text-sm">Memuat hasil...</p>
         </div>
       </div>
     }>
