@@ -8,6 +8,10 @@ export default function JobListingPage() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('acc_career_auth') !== 'true') {
+      window.location.replace('/login');
+      return;
+    }
     setMounted(true);
   }, []);
 
@@ -21,9 +25,18 @@ export default function JobListingPage() {
             <Link className="text-on-primary border-b-2 border-secondary-container pb-1 font-bold transition-all duration-200" href="/job-listing">Job Listing</Link>
           </nav>
         </div>
-        <Link href="/post-job" className="bg-secondary-container text-on-secondary-container px-6 py-2 rounded text-sm font-bold transition-all duration-200 hover:brightness-110">
-          Post a Job
-        </Link>
+        <div className="flex items-center gap-4">
+          <Link href="/post-job" className="bg-secondary-container text-on-secondary-container px-6 py-2 rounded text-sm font-bold transition-all duration-200 hover:brightness-110">
+            Post a Job
+          </Link>
+          <button
+            onClick={() => { sessionStorage.removeItem('acc_career_auth'); window.location.href = '/login'; }}
+            className="flex items-center gap-2 text-on-primary/80 hover:text-on-primary text-sm font-medium transition-all"
+          >
+            <span className="material-symbols-outlined text-base">logout</span>
+            Logout
+          </button>
+        </div>
       </header>
 
       <main className="flex-grow w-full max-w-7xl mx-auto px-6 py-8">
@@ -55,9 +68,6 @@ export default function JobListingPage() {
                         </div>
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      <span className="bg-secondary-container text-on-secondary-container px-3 py-1 text-xs font-bold rounded-full">New Application</span>
-                    </div>
                   </div>
                   <div className="border-t border-outline-variant pt-4 flex justify-end gap-3">
                     <Link href={`/job-detail/${job.id}`} className="bg-primary text-on-primary px-6 py-2 rounded font-bold hover:brightness-110 transition-all text-sm">Manage Candidates</Link>
@@ -87,11 +97,7 @@ export default function JobListingPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="bg-secondary-container text-on-secondary-container px-3 py-1 text-xs font-bold rounded-full">12 Unread</span>
-                        <span className="bg-primary-container text-on-primary-container px-3 py-1 text-xs font-bold rounded-full">45 Shortlist</span>
-                        <span className="bg-tertiary-container text-on-tertiary-container px-3 py-1 text-xs font-bold rounded-full">On-going Recruitment</span>
-                      </div>
+
                     </div>
                     <div className="border-t border-outline-variant pt-4 flex justify-end gap-3">
                       <Link href="/job-detail/sample-1" className="bg-primary text-on-primary px-6 py-2 rounded font-bold hover:brightness-110 transition-all text-sm">Manage Candidates</Link>
@@ -119,11 +125,7 @@ export default function JobListingPage() {
                           </div>
                         </div>
                       </div>
-                      <div className="flex flex-wrap gap-2">
-                        <span className="bg-surface-container-highest text-on-surface-variant px-3 py-1 text-xs font-bold rounded-full">0 Unread</span>
-                        <span className="bg-primary-container text-on-primary-container px-3 py-1 text-xs font-bold rounded-full">8 Shortlist</span>
-                        <span className="bg-green-600 text-white px-3 py-1 text-xs font-bold rounded-full">Hired</span>
-                      </div>
+
                     </div>
                     <div className="border-t border-outline-variant pt-4 flex justify-end gap-3">
                       <Link href="/job-detail/sample-2" className="bg-primary text-on-primary px-6 py-2 rounded font-bold hover:brightness-110 transition-all text-sm">Manage Candidates</Link>

@@ -8,6 +8,10 @@ export default function JobPostingManagement() {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
+    if (typeof window !== 'undefined' && sessionStorage.getItem('acc_career_auth') !== 'true') {
+      window.location.replace('/login');
+      return;
+    }
     setMounted(true);
   }, []);
 
@@ -22,9 +26,13 @@ export default function JobPostingManagement() {
           </nav>
         </div>
         <div className="flex items-center gap-4">
-          <Link href="/post-job" className="bg-secondary-container text-on-secondary-container px-6 py-2 rounded text-sm font-semibold transition-all duration-200 hover:bg-primary-fixed-dim/10">
-            Post a Job
-          </Link>
+          <button
+            onClick={() => { sessionStorage.removeItem('acc_career_auth'); window.location.href = '/login'; }}
+            className="flex items-center gap-2 text-on-primary/80 hover:text-on-primary text-sm font-medium transition-all"
+          >
+            <span className="material-symbols-outlined text-base">logout</span>
+            Logout
+          </button>
         </div>
       </header>
 

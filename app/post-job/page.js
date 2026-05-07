@@ -11,6 +11,7 @@ function JobForm() {
   const { jobs, addJob, updateJob, deleteJob } = useStore();
 
   const [mounted, setMounted] = useState(false);
+  const [currentStep, setCurrentStep] = useState(1);
   useEffect(() => { setMounted(true); }, []);
 
   const [form, setForm] = useState({
@@ -134,7 +135,7 @@ function JobForm() {
       </header>
 
       {/* Main Content Form */}
-      <main className="flex-grow max-w-7xl mx-auto w-full px-6 -mt-8 mb-12">
+      <main className="flex-grow max-w-7xl mx-auto w-full px-6 mt-6 mb-12">
         <div className="flex flex-col md:flex-row gap-6">
           
           <aside className="w-full md:w-80 shrink-0">
@@ -143,12 +144,18 @@ function JobForm() {
                 <h3 className="text-xs font-bold text-primary uppercase tracking-wider">Wizard Progress</h3>
               </div>
               <nav className="flex flex-col">
-                <div className="flex items-center gap-4 px-4 py-4 border-l-4 border-secondary-container bg-primary/5 text-primary">
+                <button
+                  onClick={() => setCurrentStep(1)}
+                  className={`flex items-center gap-4 px-4 py-4 border-l-4 text-left transition-colors ${currentStep === 1 ? 'border-secondary-container bg-primary/5 text-primary' : 'border-transparent text-on-surface-variant hover:bg-surface-container-low'}`}
+                >
                   <span className="font-semibold text-sm">Job Information</span>
-                </div>
-                <div className="flex items-center gap-4 px-4 py-4 border-l-4 border-transparent text-on-surface-variant hover:bg-surface-container-low transition-colors">
+                </button>
+                <button
+                  onClick={() => setCurrentStep(2)}
+                  className={`flex items-center gap-4 px-4 py-4 border-l-4 text-left transition-colors ${currentStep === 2 ? 'border-secondary-container bg-primary/5 text-primary' : 'border-transparent text-on-surface-variant hover:bg-surface-container-low'}`}
+                >
                   <span className="font-semibold text-sm">Application & Screening</span>
-                </div>
+                </button>
                 <div className="flex items-center gap-4 px-4 py-4 border-l-4 border-transparent text-on-surface-variant opacity-50 cursor-not-allowed">
                   <span className="font-semibold text-sm">Recruitment Process</span>
                 </div>
@@ -165,7 +172,7 @@ function JobForm() {
           <div className="flex-grow space-y-6">
             
             {/* Section 1 */}
-            <section className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded">
+            {currentStep === 1 && <section className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded">
               <div className="bg-secondary-container px-6 py-3">
                 <h2 className="text-base font-bold text-on-secondary-container uppercase">1. Job Information</h2>
               </div>
@@ -176,8 +183,9 @@ function JobForm() {
                     <input value={form.fppk} onChange={e => setForm({...form, fppk: e.target.value})} className="w-full border border-outline px-4 py-3 focus:ring-2 focus:ring-primary outline-none bg-white rounded" placeholder="Search FPPK Number..." type="text"/>
                   </div>
                   <div className="flex flex-col gap-2">
-                    <label className="text-sm font-semibold text-on-surface-variant">Job Position</label>
-                    <input value={form.positionName} onChange={e => setForm({...form, positionName: e.target.value})} className="w-full border border-outline px-4 py-3 focus:ring-2 focus:ring-primary outline-none bg-white rounded" placeholder="Enter position name" type="text"/>
+                    <label className="text-sm font-semibold text-on-surface-variant">Job Position / Roles</label>
+                    <input value={form.positionName} onChange={e => setForm({...form, positionName: e.target.value})} className="w-full border border-outline px-4 py-3 focus:ring-2 focus:ring-primary outline-none bg-white rounded" placeholder="Contoh: SA, BA, QC (pisahkan dengan koma)" type="text"/>
+                    <p className="text-xs text-on-surface-variant">Jika ada beberapa role, pisahkan dengan koma. Akan dijadikan filter pada dashboard kandidat.</p>
                   </div>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -201,11 +209,12 @@ function JobForm() {
                   <label className="text-sm font-semibold text-on-surface-variant">Qualification Description</label>
                   <textarea value={form.qualification} onChange={e => setForm({...form, qualification: e.target.value})} className="w-full border border-outline px-4 py-3 focus:ring-2 focus:ring-primary resize-none bg-white rounded" placeholder="List required skills and education..." rows="4"></textarea>
                 </div>
-              </div>
-            </section>
 
-            {/* Section 2 */}
-            <section className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded">
+
+              </div>
+            </section>}
+
+            {currentStep === 2 && <section className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded">
               <div className="bg-primary-container px-6 py-3">
                 <h2 className="text-base font-bold text-on-primary-container uppercase">2. Application & Screening Process</h2>
               </div>
@@ -247,23 +256,40 @@ function JobForm() {
                   </table>
                 </div>
               </div>
-            </section>
+            </section>}
 
             <div className="flex justify-between items-center gap-4 py-6 border-t border-outline-variant">
               <div>
-                {id && (
+                {currentStep === 2 && id && (
                   <button onClick={handleDelete} className="px-6 py-3 border border-error text-error font-bold rounded">
                     Delete Post
                   </button>
                 )}
               </div>
               <div className="flex gap-4">
-                <button onClick={handleSaveDraft} className="px-6 py-3 border border-primary text-primary font-bold rounded hover:bg-primary/5">
-                  Save Draft
-                </button>
-                <button onClick={handleCreatePostAndProcess} disabled={isProcessing} className="px-6 py-3 bg-secondary-container text-on-secondary-container font-bold rounded">
-                  {id ? 'Save Changes' : 'Create New Post'}
-                </button>
+                {currentStep === 1 && (
+                  <>
+                    <button onClick={handleSaveDraft} className="px-6 py-3 border border-primary text-primary font-bold rounded hover:bg-primary/5">
+                      Save Draft
+                    </button>
+                    <button onClick={() => setCurrentStep(2)} className="px-6 py-3 bg-secondary-container text-on-secondary-container font-bold rounded hover:brightness-110">
+                      Next →
+                    </button>
+                  </>
+                )}
+                {currentStep === 2 && (
+                  <>
+                    <button onClick={() => setCurrentStep(1)} className="px-6 py-3 border border-primary text-primary font-bold rounded hover:bg-primary/5">
+                      ← Back
+                    </button>
+                    <button onClick={handleSaveDraft} className="px-6 py-3 border border-primary text-primary font-bold rounded hover:bg-primary/5">
+                      Save Draft
+                    </button>
+                    <button onClick={handleCreatePostAndProcess} disabled={isProcessing} className="px-6 py-3 bg-secondary-container text-on-secondary-container font-bold rounded hover:brightness-110">
+                      {id ? 'Save Changes' : 'Create New Post'}
+                    </button>
+                  </>
+                )}
               </div>
             </div>
             
