@@ -32,9 +32,9 @@ export async function POST(request) {
 
     const prompt = `
 Analisis CV berikut untuk posisi: ${parameters.positionName}
-Job Desk: ${parameters.jobDescription || '-'}
-Skills: ${parameters.hardSkills?.join(', ') || '-'}
-Min Exp: ${parameters.minExperience}, Edu: ${parameters.minEducation}
+Job Desk: ${parameters.jobDescription || '-'}Kualifikasi: ${parameters.qualification || '-'}
+Requirements & Qualifications (Harus sangat diperhatikan):
+${parameters.requirements?.map(r => `- ${r.field} (Wajib: ${r.mandatory ? 'Ya' : 'Tidak'}): ${r.value}`).join('\n') || '-'}
 
 Isi CV:
 ${cvText}
