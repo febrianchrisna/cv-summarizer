@@ -65,9 +65,8 @@ Kembalikan HANYA JSON tanpa penjelasan lain:
 }
 
 // ─────────────────────────────────────────────────────────────
-// STEP 2 — MATCHER AGENT
+// STEP 2 — MATCHER AGENT (single-role job)
 // Tugas: Cocokkan profil kandidat dengan persyaratan job.
-// Input: profil ringkas (bukan full CV) + parameter job.
 // ─────────────────────────────────────────────────────────────
 async function matchCandidateToJob(profile, parameters) {
   const reqList = parameters.requirements?.length > 0
@@ -104,6 +103,99 @@ Berikan penilaian yang OBJEKTIF dan SPESIFIK. Kembalikan HANYA JSON:
 
   const raw = await callGemini(prompt);
   return parseJSON(raw);
+}
+
+// ─────────────────────────────────────────────────────────────
+// STEP 2B — ROLE ASSIGNMENT AGENT (multi-role job: Bootcamp, MT, dll)
+// Tugas:
+//   1. Bandingkan kandidat baru dengan kandidat yang sudah ada per role
+//   2. Nilai kandidat terhadap SETIAP role secara terpisah
+//   3. Tentukan role terbaik + skor akumulasi untuk role tersebut
+// ─────────────────────────────────────────────────────────────
+async function fetchExistingByRole(positionName, roles) {
+  const { data } = await supabase
+    .from('candidates')
+    .select('role_name, candidate_name, summary, score')
+    .eq('position_name', positionName)
+    .eq('status', 'done')
+    .not('role_name', 'is', null)
+    .order('score', { ascending: false });
+
+  const grouped = {};
+  for (const role of roles) {
+    const inRole = (data || []).filter(c => c.role_name === role).slice(0, 4);
+    grouped[role] = inRole.map(c => `${c.candidate_name || 'N/A'} (skor ${c.score ?? '-'}): ${c.summary || '-'}`);
+  }
+  return grouped;
+}
+
+async function assignMultiRole(profile, parameters, existingByRole) {
+  const roles = parameters.roles;
+
+  const roleLines = roles.map(role => {
+    const examples = existingByRole[role] || [];
+    const exampleText = examples.length > 0
+      ? `\n     Kandidat yang sudah di-assign ke role ini:\n     ${examples.map(e => `- ${e}`).join('\n     ')}`
+      : '\n     (Belum ada kandidat di role ini)';
+    return `• ${role}:${exampleText}`;
+  }).join('\n\n');
+
+  const reqList = parameters.requirements?.length > 0
+    ? parameters.requirements.map(r =>
+        `- ${r.field}${r.mandatory ? ' [WAJIB]' : ''}: ${r.value}`
+      ).join('\n')
+    : '- (tidak ada persyaratan spesifik)';
+
+  const prompt = `Kamu adalah Role Assignment Agent untuk program "${parameters.positionName}".
+
+DESKRIPSI PROGRAM: ${parameters.jobDescription || '-'}
+KUALIFIKASI UMUM: ${parameters.qualification || '-'}
+PERSYARATAN:
+${reqList}
+
+ROLE YANG TERSEDIA DAN KANDIDAT YANG SUDAH ADA:
+${roleLines}
+
+PROFIL KANDIDAT BARU:
+- Nama: ${profile.candidate_name}
+- Pendidikan: ${profile.education || '-'}
+- Pengalaman: ~${profile.years_experience || 0} tahun
+- Skill: ${profile.top_skills?.join(', ') || '-'}
+- Riwayat Kerja: ${profile.work_history?.join(' | ') || '-'}
+- Bahasa: ${profile.languages?.join(', ') || '-'}
+- Ringkasan: ${profile.summary || '-'}
+
+TUGAS:
+1. Bandingkan profil kandidat baru dengan kandidat yang sudah ada di masing-masing role
+2. Nilai kesesuaian kandidat baru dengan SETIAP role (0-100)
+3. Tentukan role yang PALING COCOK untuk kandidat ini
+4. Skor akhir = skor akumulasi untuk role terpilih (0-100)
+
+Kembalikan HANYA JSON valid:
+{
+  "role_scores": {${roles.map(r => `"${r}": <skor 0-100>`).join(', ')}},
+  "recommended_role": "<salah satu dari: ${roles.join(', ')}>",
+  "score": <skor untuk role terpilih, integer 0-100>,
+  "match_level": "High|Medium|Low",
+  "matched_requirements": ["persyaratan yang terpenuhi..."],
+  "missing_requirements": ["persyaratan yang tidak terpenuhi..."],
+  "reasoning": "penjelasan mengapa kandidat lebih cocok di role ini dibanding role lain"
+}`;
+
+  const raw = await callGemini(prompt);
+  const result = parseJSON(raw);
+
+  // Validasi: recommended_role harus salah satu dari roles yang tersedia
+  if (!roles.includes(result.recommended_role)) {
+    // Fallback: pilih role dengan skor tertinggi dari role_scores
+    const best = Object.entries(result.role_scores || {})
+      .filter(([r]) => roles.includes(r))
+      .sort((a, b) => b[1] - a[1])[0];
+    result.recommended_role = best ? best[0] : roles[0];
+    if (best) result.score = best[1];
+  }
+
+  return result;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -146,12 +238,29 @@ export async function POST(request) {
     // Delay singkat antar panggilan Gemini
     await new Promise(r => setTimeout(r, 1500));
 
-    // ── STEP 2: Matcher Agent ──
-    console.log(`[cv-agent] Step 2 — cocokkan dengan job...`);
-    const match = await matchCandidateToJob(profile, parameters);
-    console.log(`[cv-agent] Step 2 selesai: skor=${match.score}, level=${match.match_level}`);
+    // ── STEP 2: Matching / Role Assignment Agent ──
+    const isMultiRole = Array.isArray(parameters.roles) && parameters.roles.length > 1;
+    let match;
+
+    if (isMultiRole) {
+      // Multi-role: bandingkan dengan kandidat existing, tentukan role terbaik
+      console.log(`[cv-agent] Step 2 — multi-role assignment (${parameters.roles.join(', ')})...`);
+      const existingByRole = await fetchExistingByRole(parameters.positionName, parameters.roles);
+      const rolesWithData = Object.entries(existingByRole).filter(([, v]) => v.length > 0).map(([r]) => r);
+      console.log(`[cv-agent] Kandidat existing ditemukan di role: ${rolesWithData.join(', ') || 'belum ada'}`);
+      match = await assignMultiRole(profile, parameters, existingByRole);
+      console.log(`[cv-agent] Step 2 selesai: role=${match.recommended_role}, skor=${match.score}, level=${match.match_level}`);
+    } else {
+      // Single-role: match langsung ke job
+      console.log(`[cv-agent] Step 2 — cocokkan dengan job...`);
+      match = await matchCandidateToJob(profile, parameters);
+      console.log(`[cv-agent] Step 2 selesai: skor=${match.score}, level=${match.match_level}`);
+    }
 
     const score = Math.max(0, Math.min(100, parseInt(match.score) || 0));
+
+    // Gunakan role yang direkomendasikan AI (multi-role) atau role existing kandidat
+    const finalRoleName = match.recommended_role || candidate.role_name || null;
 
     const { error: updateError } = await supabase
       .from('candidates')
@@ -165,6 +274,8 @@ export async function POST(request) {
         matched_requirements: match.matched_requirements || [],
         missing_requirements: match.missing_requirements || [],
         reasoning: match.reasoning,
+        role_name: finalRoleName,
+        role_scores: match.role_scores || null,
         status: 'done',
       })
       .eq('id', candidateId);
