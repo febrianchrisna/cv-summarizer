@@ -6,7 +6,7 @@ export async function POST(request) {
     const formData = await request.formData();
     const cvFile = formData.get('cv');
     const parameters = JSON.parse(formData.get('parameters'));
-    const sessionId = formData.get('session_id');
+    let sessionId = formData.get('session_id');
 
     if (!cvFile) {
       return Response.json({ error: 'File CV tidak ditemukan' }, { status: 400 });
@@ -35,7 +35,7 @@ export async function POST(request) {
 
       if (sessionError) {
         console.error('session upsert error:', sessionError);
-        // Jangan throw — lanjutkan saja, session_id akan di-null-kan di bawah
+        sessionId = null; // null out so FK constraint isn't violated
       }
     }
 

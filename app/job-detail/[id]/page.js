@@ -15,7 +15,7 @@ export default function JobDetail({ params }) {
   const [candidates, setCandidates] = useState([]);
   const [loadingCandidates, setLoadingCandidates] = useState(false);
   const [selectedCandidate, setSelectedCandidate] = useState(null);
-  const [selectedRole, setSelectedRole] = useState('');      // role saat upload
+  const [selectedRole, setSelectedRole] = useState('');      // kept for backward compat
   const [activeRoleFilter, setActiveRoleFilter] = useState(''); // filter tabel
 
   const fetchCandidates = async (positionName) => {
@@ -95,9 +95,11 @@ export default function JobDetail({ params }) {
     const sessionId = crypto.randomUUID();
 
     // Build parameters object compatible with queue-cv & process-cv API
+    const allRoles = getRoles();
     const parameters = {
       positionName: getPositionName(),
-      roleName: selectedRole || '',
+      roleName: '',
+      roles: allRoles.length > 0 ? allRoles : undefined,
       jobDescription: job?.jobDescription || '',
       qualification: job?.qualification || '',
       minExperience: '',
@@ -218,18 +220,11 @@ export default function JobDetail({ params }) {
               </button>
             </div>
 
-            {/* Role selector — tampil hanya jika positionName punya lebih dari 1 role */}
+            {/* Info badge jika multi-role — AI yang akan tentukan role terbaik */}
             {getRoles().length > 0 && (
-              <div className="mb-4 flex items-center gap-3">
-                <label className="text-sm font-semibold text-on-surface-variant shrink-0">Upload untuk Role:</label>
-                <select
-                  value={selectedRole}
-                  onChange={e => setSelectedRole(e.target.value)}
-                  className="border border-outline rounded px-3 py-2 text-sm bg-white focus:ring-2 focus:ring-primary outline-none"
-                >
-                  <option value="">-- Pilih Role --</option>
-                  {getRoles().map((r, i) => <option key={i} value={r}>{r}</option>)}
-                </select>
+              <div className="mb-4 flex items-center gap-2 text-sm text-primary bg-primary/5 border border-primary/20 rounded px-4 py-2">
+                <span className="material-symbols-outlined text-base">auto_awesome</span>
+                <span>AI akan otomatis menentukan role terbaik untuk setiap kandidat dari: <strong>{getRoles().join(', ')}</strong></span>
               </div>
             )}
             <div 
@@ -366,6 +361,7 @@ export default function JobDetail({ params }) {
                   <th className="px-6 py-4">Rank</th>
                   <th className="px-6 py-4">Nama Kandidat</th>
                   <th className="px-6 py-4">Kontak</th>
+                  {getRoles().length > 0 && <th className="px-6 py-4">Role</th>}
                   <th className="px-6 py-4 min-w-45">AI Matching Score</th>
                   <th className="px-6 py-4">Match Level</th>
                 </tr>
@@ -415,6 +411,13 @@ export default function JobDetail({ params }) {
                         <p className="text-xs text-on-surface-variant mt-0.5">{c.file_name}</p>
                       </td>
                       <td className="px-6 py-4 text-sm text-on-surface-variant">{c.email || c.phone || '-'}</td>
+                      {getRoles().length > 0 && (
+                        <td className="px-6 py-4">
+                          {c.role_name
+                            ? <span className="text-xs font-semibold px-2.5 py-1 rounded-full bg-primary/10 text-primary border border-primary/20">{c.role_name}</span>
+                            : <span className="text-xs text-on-surface-variant">-</span>}
+                        </td>
+                      )}
                       <td className="px-6 py-4">
                         <div className="flex items-center gap-2">
                           <div className="grow h-2 rounded-full bg-surface-container-high overflow-hidden">
@@ -457,7 +460,7 @@ export default function JobDetail({ params }) {
               <div>
                 <h2 className="text-lg font-bold text-on-surface">{selectedCandidate.candidate_name || 'Tidak diketahui'}</h2>
                 <p className="text-sm text-on-surface-variant mt-0.5">{selectedCandidate.email}{selectedCandidate.email && selectedCandidate.phone ? ' · ' : ''}{selectedCandidate.phone}</p>
-                <p className="text-xs text-on-surface-variant mt-1">Skor: <strong>{selectedCandidate.score}</strong> · {selectedCandidate.match_level}</p>
+                <p className="text-xs text-on-surface-variant mt-1">Skor: <strong>{selectedCandidate.score}</strong> · {selectedCandidate.match_level}{selectedCandidate.role_name ? <span> · Role: <strong>{selectedCandidate.role_name}</strong></span> : null}</p>
               </div>
               <button onClick={() => setSelectedCandidate(null)} className="text-on-surface-variant hover:text-on-surface text-2xl leading-none p-1">×</button>
             </div>
@@ -466,6 +469,31 @@ export default function JobDetail({ params }) {
                 <div>
                   <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-1">Ringkasan</p>
                   <p className="text-sm text-on-surface leading-relaxed">{selectedCandidate.summary}</p>
+                </div>
+              )}
+              {/* Skor per role (hanya untuk multi-role job) */}
+              {selectedCandidate.role_scores && Object.keys(selectedCandidate.role_scores).length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-on-surface-variant uppercase tracking-wider mb-2">Skor per Role</p>
+                  <div className="space-y-2">
+                    {Object.entries(selectedCandidate.role_scores)
+                      .sort((a, b) => b[1] - a[1])
+                      .map(([role, s]) => {
+                        const isAssigned = role === selectedCandidate.role_name;
+                        const color = s >= 70 ? '#166534' : s >= 45 ? '#854d0e' : '#ba1a1a';
+                        return (
+                          <div key={role} className="flex items-center gap-3">
+                            <span className={`text-xs font-semibold w-16 shrink-0 ${isAssigned ? 'text-primary' : 'text-on-surface-variant'}`}>
+                              {role}{isAssigned ? ' ★' : ''}
+                            </span>
+                            <div className="grow h-2 rounded-full bg-surface-container-high overflow-hidden">
+                              <div className="h-full rounded-full" style={{width:`${s}%`, backgroundColor: color}}/>
+                            </div>
+                            <span className="text-xs font-bold w-8 text-right" style={{color}}>{s}</span>
+                          </div>
+                        );
+                      })}
+                  </div>
                 </div>
               )}
               {selectedCandidate.matched_requirements?.length > 0 && (

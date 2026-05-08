@@ -109,7 +109,7 @@ function JobForm() {
   if (!mounted) return null;
 
   return (
-    <div className="bg-background text-on-surface font-sans min-h-screen flex flex-col text-black">
+    <div className="bg-background text-on-surface font-sans min-h-screen flex flex-col">
       {/* Top Nav */}
       <nav className="flex justify-between items-center w-full px-6 py-4 bg-primary dark:bg-primary-container sticky top-0 z-50">
         <div className="flex items-center gap-12">
@@ -135,7 +135,7 @@ function JobForm() {
       </header>
 
       {/* Main Content Form */}
-      <main className="flex-grow max-w-7xl mx-auto w-full px-6 mt-6 mb-12">
+      <main className="grow max-w-7xl mx-auto w-full px-6 mt-6 mb-12">
         <div className="flex flex-col md:flex-row gap-6">
           
           <aside className="w-full md:w-80 shrink-0">
@@ -169,7 +169,7 @@ function JobForm() {
             </div>
           </aside>
 
-          <div className="flex-grow space-y-6">
+          <div className="grow space-y-6">
             
             {/* Section 1 */}
             {currentStep === 1 && <section className="bg-surface-container-lowest border border-outline-variant shadow-sm rounded">
