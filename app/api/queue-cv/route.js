@@ -7,6 +7,8 @@ export async function POST(request) {
     const cvFile = formData.get('cv');
     const parameters = JSON.parse(formData.get('parameters'));
     let sessionId = formData.get('session_id');
+    // job_id dikirim dari job-detail page untuk isolasi data per Job Listing
+    const jobId = formData.get('job_id') || null;
 
     if (!cvFile) {
       return Response.json({ error: 'File CV tidak ditemukan' }, { status: 400 });
@@ -45,6 +47,7 @@ export async function POST(request) {
         file_name: cvFile.name,
         position_name: parameters.positionName,
         role_name: parameters.roleName || null,
+        job_id: jobId,
         session_id: sessionId || null,
         parameters: { ...parameters, cvText: truncatedText, pdfBase64: pdfBase64 || null },
         status: 'pending',
