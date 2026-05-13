@@ -18,12 +18,19 @@ export default function JobDetail({ params }) {
   const [selectedRole, setSelectedRole] = useState('');      // kept for backward compat
   const [activeRoleFilter, setActiveRoleFilter] = useState(''); // filter tabel
 
-  const fetchCandidates = async (positionName) => {
+  // Fetch kandidat berdasarkan job_id (isolasi per Job Listing)
+  // Fallback ke position_name untuk sample jobs / data lama
+  const fetchCandidates = async (jobIdParam, positionName) => {
     setLoadingCandidates(true);
     try {
-      const url = positionName
-        ? `/api/get-results?position=${encodeURIComponent(positionName)}`
-        : `/api/get-results`;
+      let url;
+      if (jobIdParam && jobIdParam !== 'sample-1' && jobIdParam !== 'sample-2') {
+        url = `/api/get-results?job_id=${encodeURIComponent(jobIdParam)}`;
+      } else if (positionName) {
+        url = `/api/get-results?position=${encodeURIComponent(positionName)}`;
+      } else {
+        url = `/api/get-results`;
+      }
       const res = await fetch(url);
       const json = await res.json();
       if (json.success) setCandidates(json.data || []);
@@ -44,11 +51,12 @@ export default function JobDetail({ params }) {
       const foundJob = jobs.find(j => j.id === id);
       if (foundJob) {
         setJob(foundJob);
-        fetchCandidates(foundJob.positionName || foundJob.title);
+        // Gunakan job.id (UUID) untuk isolasi data per Job Listing
+        fetchCandidates(id, foundJob.positionName || foundJob.title);
       } else if (id === 'sample-1') {
-        fetchCandidates('Senior Recruitment Specialist');
+        fetchCandidates(null, 'Senior Recruitment Specialist');
       } else if (id === 'sample-2') {
-        fetchCandidates('Full Stack Developer - Internship');
+        fetchCandidates(null, 'Full Stack Developer - Internship');
       }
     }
   }, [id, jobs]);
@@ -57,7 +65,7 @@ export default function JobDetail({ params }) {
   useEffect(() => {
     if (!isProcessing || !job) return;
     const positionName = job.title || job.positionName;
-    const interval = setInterval(() => fetchCandidates(positionName), 4000);
+    const interval = setInterval(() => fetchCandidates(id, positionName), 4000);
     return () => clearInterval(interval);
   }, [isProcessing, job]);
 
@@ -117,6 +125,10 @@ export default function JobDetail({ params }) {
         formData.append('cv', cv);
         formData.append('parameters', JSON.stringify(parameters));
         formData.append('session_id', sessionId);
+        // Kirim job_id agar data terisolasi per Job Listing
+        if (id && id !== 'sample-1' && id !== 'sample-2') {
+          formData.append('job_id', id);
+        }
 
         const queueRes = await fetch('/api/queue-cv', { method: 'POST', body: formData });
         const queueJson = await queueRes.json();
@@ -150,7 +162,7 @@ export default function JobDetail({ params }) {
         }
       }
 
-      await fetchCandidates(parameters.positionName);
+      await fetchCandidates(id, parameters.positionName);
       setSelectedCVs([]);
       setShowUpload(false);
       setIsProcessing(false);
@@ -346,7 +358,7 @@ export default function JobDetail({ params }) {
               )}
             </div>
             <button
-              onClick={() => fetchCandidates(job?.title || job?.positionName)}
+              onClick={() => fetchCandidates(id, job?.title || job?.positionName)}
               disabled={loadingCandidates}
               className="flex items-center gap-1 text-xs text-secondary hover:text-primary transition-colors"
             >

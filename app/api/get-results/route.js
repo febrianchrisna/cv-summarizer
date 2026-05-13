@@ -6,8 +6,25 @@ export async function GET(request) {
     const position = searchParams.get('position');
     const sessionId = searchParams.get('session_id');
     const role = searchParams.get('role'); // opsional — filter sub-role
+    const jobId = searchParams.get('job_id'); // filter per Job Listing (utama)
 
-    // Jika ada session_id (dari halaman /results lama), filter per sesi
+    // Prioritas 1: Filter berdasarkan job_id (isolasi per Job Listing)
+    if (jobId) {
+      let q = supabase
+        .from('candidates')
+        .select('*')
+        .eq('status', 'done')
+        .eq('job_id', jobId)
+        .order('score', { ascending: false });
+
+      if (role) q = q.eq('role_name', role);
+
+      const { data, error } = await q;
+      if (error) throw error;
+      return Response.json({ success: true, data: data || [] });
+    }
+
+    // Prioritas 2: Jika ada session_id (dari halaman /results lama), filter per sesi
     if (sessionId) {
       const { data, error } = await supabase
         .from('candidates')
@@ -20,23 +37,22 @@ export async function GET(request) {
       return Response.json({ success: true, data: data || [] });
     }
 
-    // Jika ada position, ambil semua kandidat untuk posisi tsb
-    // Termasuk data lama yang position_name-nya kosong (backward compat)
+    // Prioritas 3: Filter berdasarkan position_name (fallback untuk data lama)
     if (position && position !== 'null' && position !== '') {
-      // Query 1: kandidat dengan position_name spesifik
+      // Query 1: kandidat dengan position_name spesifik (tanpa job_id, data lama)
       let q1 = supabase
         .from('candidates')
         .select('*')
         .eq('status', 'done')
         .eq('position_name', position)
+        .is('job_id', null)   // hanya data lama yang belum ada job_id
         .order('score', { ascending: false });
       if (role) q1 = q1.eq('role_name', role);
       const { data: specific, error: e1 } = await q1;
 
       if (e1) throw e1;
 
-      // Query 2: data lama dengan position_name kosong (tidak boleh dicampur jika ada data spesifik)
-      // Hanya ambil jika tidak ada data spesifik sama sekali (migrasi data lama)
+      // Query 2: data lama dengan position_name kosong (migrasi data lama)
       let combined = specific || [];
       if (combined.length === 0 && !role) {
         const { data: legacy } = await supabase
